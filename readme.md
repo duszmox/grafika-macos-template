@@ -20,7 +20,7 @@ Mivel ez a két könyvtár elalvultként van megjelölve fordításkor rengeteg 
 g++ src/skeleton.cpp src/framework.cpp -o Skeleton -framework GLUT -framework OpenGL -std=c++11
 ```
 #### Xcode használata 
-[CMake generátor segítségével generálható Xcode projekt is.](https://cmake.org/cmake/help/v3.0/manual/cmake-generators.7.html)
+[CMake segítségével generálható Xcode projekt is.](https://cmake.org/cmake/help/v3.0/manual/cmake-generators.7.html)
 ```console
 cmake -G Xcode <CMakeLists.txt-t tartamazó mappa>
 ```

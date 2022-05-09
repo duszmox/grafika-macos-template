@@ -10,10 +10,9 @@ Ajánlom a **JetBrains CLion** használatát, hiszen CMake projekteket használ 
 - Az `OpenGL` és `GLUT` könyvtárakat nem kell telepítenünk.  
 ### Egyéb
 #### `OpenGL` és `GLUT` deprecation
-Mivel ez a két könyvtár elalvultként van megjelölve fordításkor rengeteg ezzel kapcsolatos "hibával" találkozhatunk. Az olvashatóbb output érdekében érdemes definiálni az alábbi makrót még a `framework.h` include előtt:  
-```c++
-#define GL_SILENCE_DEPRECATION
-#include "framework.h"
+Mivel ez a két könyvtár elalvultként van megjelölve fordításkor rengeteg ezzel kapcsolatos "hibával" találkozhatunk. Az olvashatóbb output érdekében érdemes definiálni a `GL_SILENCE_DEPRECATION` makrót projekt szinten *(cmake segítségével így)*:  
+```
+target_compile_definitions(${PROJECT_NAME} PRIVATE GL_SILENCE_DEPRECATION)
 ```
 #### Fordítás `g++` segítségével
 ```console

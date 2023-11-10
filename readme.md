@@ -1,6 +1,5 @@
 ## Számítógépes Grafika Template macOS felhasználók számára
 A projekt a CMake build tool segítségével fordítható.  
-Ajánlom a **JetBrains CLion** használatát, hiszen CMake projekteket használ eleve és cross-platform.  
 ### Függőségek telepítése
 - **Xcode command line tools** (compiler, make, git, stb..)  
   `xcode-select --install`

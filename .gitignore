@@ -1,0 +1,14 @@
+
+build/
+
+CMakeFiles/
+
+cmake_install.cmake
+
+CMakeScripts/
+
+Debug/
+
+macos-grafika-template.xcodeproj/
+
+*.txt

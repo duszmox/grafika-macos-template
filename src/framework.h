@@ -1,325 +1,140 @@
 //=============================================================================================
-// Collection of programs from lecture slides.
-// Framework for assignments. Valid from 2020.
-//
-// Do not change it if you want to submit a homework.
-// In the homework, file operations other than printf are prohibited.
+// OpenGL keretrendszer
 //=============================================================================================
+#define GLAD_GL_IMPLEMENTATION
+#include <glad/glad.h>
 #define _USE_MATH_DEFINES		// M_PI
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <vector>
 #include <string>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
-#if defined(__APPLE__)
-#include <GLUT/GLUT.h>
-#include <OpenGL/gl3.h>
+#define FILE_OPERATIONS
+#ifdef FILE_OPERATIONS
+#include <fstream>
+#include <filesystem>
+#if __cplusplus >= 201703L
+#include <filesystem>
+namespace fs = std::filesystem;
 #else
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
-#include <windows.h>
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
 #endif
-#include <GL/glew.h>		// must be downloaded
-#include <GL/freeglut.h>	// must be downloaded unless you have an Apple
+#include "lodepng.h"
 #endif
 
-// Resolution of screen
-const unsigned int windowWidth = 600, windowHeight = 600;
+using namespace glm;
 
-//--------------------------
-struct vec2 {
-//--------------------------
-	float x, y;
-
-	vec2(float x0 = 0, float y0 = 0) { x = x0; y = y0; }
-	vec2 operator*(float a) const { return vec2(x * a, y * a); }
-	vec2 operator/(float a) const { return vec2(x / a, y / a); }
-	vec2 operator+(const vec2& v) const { return vec2(x + v.x, y + v.y); }
-	vec2 operator-(const vec2& v) const { return vec2(x - v.x, y - v.y); }
-	vec2 operator*(const vec2& v) const { return vec2(x * v.x, y * v.y); }
-	vec2 operator-() const { return vec2(-x, -y); }
-};
-
-inline float dot(const vec2& v1, const vec2& v2) {
-	return (v1.x * v2.x + v1.y * v2.y);
-}
-
-inline float length(const vec2& v) { return sqrtf(dot(v, v)); }
-
-inline vec2 normalize(const vec2& v) { return v * (1 / length(v)); }
-
-inline vec2 operator*(float a, const vec2& v) { return vec2(v.x * a, v.y * a); }
-
-//--------------------------
-struct vec3 {
-//--------------------------
-	float x, y, z;
-
-	vec3(float x0 = 0, float y0 = 0, float z0 = 0) { x = x0; y = y0; z = z0; }
-	vec3(vec2 v) { x = v.x; y = v.y; z = 0; }
-
-	vec3 operator*(float a) const { return vec3(x * a, y * a, z * a); }
-	vec3 operator/(float a) const { return vec3(x / a, y / a, z / a); }
-	vec3 operator+(const vec3& v) const { return vec3(x + v.x, y + v.y, z + v.z); }
-	vec3 operator-(const vec3& v) const { return vec3(x - v.x, y - v.y, z - v.z); }
-	vec3 operator*(const vec3& v) const { return vec3(x * v.x, y * v.y, z * v.z); }
-	vec3 operator-()  const { return vec3(-x, -y, -z); }
-};
-
-inline float dot(const vec3& v1, const vec3& v2) { return (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z); }
-
-inline float length(const vec3& v) { return sqrtf(dot(v, v)); }
-
-inline vec3 normalize(const vec3& v) { return v * (1 / length(v)); }
-
-inline vec3 cross(const vec3& v1, const vec3& v2) {
-	return vec3(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
-}
-
-inline vec3 operator*(float a, const vec3& v) { return vec3(v.x * a, v.y * a, v.z * a); }
-
-//--------------------------
-struct vec4 {
-//--------------------------
-	float x, y, z, w;
-
-	vec4(float x0 = 0, float y0 = 0, float z0 = 0, float w0 = 0) { x = x0; y = y0; z = z0; w = w0; }
-	float& operator[](int j) { return *(&x + j); }
-	float operator[](int j) const { return *(&x + j); }
-
-	vec4 operator*(float a) const { return vec4(x * a, y * a, z * a, w * a); }
-	vec4 operator/(float d) const { return vec4(x / d, y / d, z / d, w / d); }
-	vec4 operator+(const vec4& v) const { return vec4(x + v.x, y + v.y, z + v.z, w + v.w); }
-	vec4 operator-(const vec4& v)  const { return vec4(x - v.x, y - v.y, z - v.z, w - v.w); }
-	vec4 operator*(const vec4& v) const { return vec4(x * v.x, y * v.y, z * v.z, w * v.w); }
-	void operator+=(const vec4 right) { x += right.x; y += right.y; z += right.z; w += right.w; }
-};
-
-inline float dot(const vec4& v1, const vec4& v2) {
-	return (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w);
-}
-
-inline vec4 operator*(float a, const vec4& v) {
-	return vec4(v.x * a, v.y * a, v.z * a, v.w * a);
-}
-
-//---------------------------
-struct mat4 { // row-major matrix 4x4
-//---------------------------
-	vec4 rows[4];
-public:
-	mat4() {}
-	mat4(float m00, float m01, float m02, float m03,
-		float m10, float m11, float m12, float m13,
-		float m20, float m21, float m22, float m23,
-		float m30, float m31, float m32, float m33) {
-		rows[0][0] = m00; rows[0][1] = m01; rows[0][2] = m02; rows[0][3] = m03;
-		rows[1][0] = m10; rows[1][1] = m11; rows[1][2] = m12; rows[1][3] = m13;
-		rows[2][0] = m20; rows[2][1] = m21; rows[2][2] = m22; rows[2][3] = m23;
-		rows[3][0] = m30; rows[3][1] = m31; rows[3][2] = m32; rows[3][3] = m33;
-	}
-	mat4(vec4 it, vec4 jt, vec4 kt, vec4 ot) {
-		rows[0] = it; rows[1] = jt; rows[2] = kt; rows[3] = ot;
-	}
-
-	vec4& operator[](int i) { return rows[i]; }
-	vec4 operator[](int i) const { return rows[i]; }
-	operator float*() const { return (float*)this; }
-};
-
-inline vec4 operator*(const vec4& v, const mat4& mat) {
-	return v[0] * mat[0] + v[1] * mat[1] + v[2] * mat[2] + v[3] * mat[3];
-}
-
-inline mat4 operator*(const mat4& left, const mat4& right) {
-	mat4 result;
-	for (int i = 0; i < 4; i++) result.rows[i] = left.rows[i] * right;
-	return result;
-}
-
-inline mat4 TranslateMatrix(vec3 t) {
-	return mat4(vec4(1,   0,   0,   0),
-			    vec4(0,   1,   0,   0),
-				vec4(0,   0,   1,   0),
-				vec4(t.x, t.y, t.z, 1));
-}
-
-inline mat4 ScaleMatrix(vec3 s) {
-	return mat4(vec4(s.x, 0,   0,   0),
-			    vec4(0,   s.y, 0,   0),
-				vec4(0,   0,   s.z, 0),
-				vec4(0,   0,   0,   1));
-}
-
-inline mat4 RotationMatrix(float angle, vec3 w) {
-	float c = cosf(angle), s = sinf(angle);
-	w = normalize(w);
-	return mat4(vec4(c * (1 - w.x*w.x) + w.x*w.x, w.x*w.y*(1 - c) + w.z*s, w.x*w.z*(1 - c) - w.y*s, 0),
-			    vec4(w.x*w.y*(1 - c) - w.z*s, c * (1 - w.y*w.y) + w.y*w.y, w.y*w.z*(1 - c) + w.x*s, 0),
-			    vec4(w.x*w.z*(1 - c) + w.y*s, w.y*w.z*(1 - c) - w.x*s, c * (1 - w.z*w.z) + w.z*w.z, 0),
-			    vec4(0, 0, 0, 1));
-}
-
-//---------------------------
-class Texture {
-//---------------------------
-	std::vector<vec4> load(std::string pathname, bool transparent, int& width, int& height) {
-		FILE * file = fopen(pathname.c_str(), "r");
-		if (!file) {
-			printf("%s does not exist\n", pathname.c_str());
-			width = height = 0;
-			return std::vector<vec4>();
-		}
-		unsigned short bitmapFileHeader[27];					// bitmap header
-		fread(&bitmapFileHeader, 27, 2, file);
-		if (bitmapFileHeader[0] != 0x4D42) printf("Not bmp file\n");
-		if (bitmapFileHeader[14] != 24) printf("Only true color bmp files are supported\n");
-		width = bitmapFileHeader[9];
-		height = bitmapFileHeader[11];
-		unsigned int size = (unsigned long)bitmapFileHeader[17] + (unsigned long)bitmapFileHeader[18] * 65536;
-		fseek(file, 54, SEEK_SET);
-		std::vector<unsigned char> bImage(size);
-		fread(&bImage[0], 1, size, file); 	// read the pixels
-		fclose(file);
-		std::vector<vec4> image(width * height);
-		int i = 0;
-		for (unsigned int idx = 0; idx < size; idx += 3) { // Swap R and B since in BMP, the order is BGR
-			float alpha = (transparent) ? (bImage[idx] + bImage[idx + 1] + bImage[idx + 2]) / 3.0f / 256.0f : 1.0f;
-			image[i++] = vec4(bImage[idx + 2] / 256.0f, bImage[idx + 1] / 256.0f, bImage[idx] / 256.0f, alpha);
-		}
-		return image;
-	}
-
-public:
-	unsigned int textureId = 0;
-
-	Texture() { textureId = 0; }
-
-	Texture(std::string pathname, bool transparent = false) {
-		textureId = 0;
-		create(pathname, transparent);
-	}
-
-	Texture(int width, int height, const std::vector<vec4>& image, int sampling = GL_LINEAR) {
-		textureId = 0;
-		create(width, height, image, sampling);
-	}
-
-	Texture(const Texture& texture) {
-		printf("\nError: Texture resource is not copied on GPU!!!\n");
-	}
-
-	void operator=(const Texture& texture) {
-		printf("\nError: Texture resource is not copied on GPU!!!\n");
-	}
-
-	void create(std::string pathname, bool transparent = false) {
-		int width, height;
-		std::vector<vec4> image = load(pathname, transparent, width, height);
-		if (image.size() > 0) create(width, height, image);
-	}
-
-	void create(int width, int height, const std::vector<vec4>& image, int sampling = GL_LINEAR) {
-		if (textureId == 0) glGenTextures(1, &textureId);  				// id generation
-		glBindTexture(GL_TEXTURE_2D, textureId);    // binding
-
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_FLOAT, &image[0]); // To GPU
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampling); // sampling
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampling);
-	}
-
-	~Texture() {
-		if (textureId > 0) glDeleteTextures(1, &textureId);
-	}
-};
+inline mat4 translate(const vec3& v) { return translate(mat4(1.0f), v); }
+inline mat4 scale(const vec3& v) { return scale(mat4(1.0f), v); }
+inline mat4 rotate(float angle, const vec3& v) { return rotate(mat4(1.0f), angle, v); }
 
 //---------------------------
 class GPUProgram {
 //--------------------------
-	unsigned int shaderProgramId = 0;
-	unsigned int vertexShader = 0, geometryShader = 0, fragmentShader = 0;
+	GLuint shaderProgramId = 0;
 	bool waitError = true;
 
-	void getErrorInfo(unsigned int handle) { // shader error report
-		int logLen, written;
-		glGetShaderiv(handle, GL_INFO_LOG_LENGTH, &logLen);
-		if (logLen > 0) {
-			std::string log(logLen, '\0');
-			glGetShaderInfoLog(handle, logLen, &written, &log[0]);
-			printf("Shader log:\n%s", log.c_str());
+	bool checkShader(unsigned int shader, std::string message) { // shader fordítási hibák kezelése
+		GLint infoLogLength = 0, result = 0;
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
+		if (!result) {
+			std::string errorMessage(infoLogLength, '\0');
+			glGetShaderInfoLog(shader, infoLogLength, NULL, (GLchar *)errorMessage.data());
+			printf("%s! \n Log: \n%s\n", message.c_str(), errorMessage.c_str());
 			if (waitError) getchar();
-		}
-	}
-
-	bool checkShader(unsigned int shader, std::string message) { // check if shader could be compiled
-		int OK;
-		glGetShaderiv(shader, GL_COMPILE_STATUS, &OK);
-		if (!OK) {
-			printf("%s!\n", message.c_str());
-			getErrorInfo(shader);
 			return false;
 		}
 		return true;
 	}
 
-	bool checkLinking(unsigned int program) { 	// check if shader could be linked
-		int OK;
-		glGetProgramiv(program, GL_LINK_STATUS, &OK);
-		if (!OK) {
-			printf("Failed to link shader program!\n");
-			getErrorInfo(program);
+	bool checkLinking(unsigned int program) { 	// shader szerkesztési hibák kezelése
+		GLint infoLogLength = 0, result = 0;
+		glGetProgramiv(program, GL_LINK_STATUS, &result);
+		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
+		if (!result) {
+			std::string errorMessage(infoLogLength, '\0');
+			glGetProgramInfoLog(program, infoLogLength, nullptr, (GLchar *)errorMessage.data());
+			printf("Failed to link shader program! \n Log: \n%s\n", errorMessage.c_str());
+			if (waitError) getchar();
 			return false;
 		}
 		return true;
 	}
 
-	int getLocation(const std::string& name) {	// get the address of a GPU uniform variable
+	int getLocation(const std::string& name) {	// uniform változó címének lekérdezése
 		int location = glGetUniformLocation(shaderProgramId, name.c_str());
 		if (location < 0) printf("uniform %s cannot be set\n", name.c_str());
 		return location;
 	}
 
+#ifdef FILE_OPERATIONS
+	std::string file2string(const fs::path& _fileName) {
+		std::string shaderCodeOut = "";
+		std::ifstream shaderStream(_fileName);
+		if (!shaderStream.is_open()) {
+			printf("Error while opening shader code file %s!", _fileName.string().c_str());
+			return "";
+		}
+		std::string line = "";
+		while (std::getline(shaderStream, line)) {
+			shaderCodeOut += line + "\n";
+		}
+		shaderStream.close();
+		return shaderCodeOut;
+	}
+#endif
+
+	std::string shaderType2string(GLenum shadeType) {
+		switch (shadeType)
+		{
+		case GL_VERTEX_SHADER:			return "Vertex"; break;
+		case GL_FRAGMENT_SHADER:		return "Fragment"; break;
+		case GL_GEOMETRY_SHADER:		return "Geometry"; break;
+		case GL_TESS_CONTROL_SHADER:	return "Tessellation control"; break;
+		case GL_TESS_EVALUATION_SHADER:	return "Tessellation evaluation"; break;
+		case GL_COMPUTE_SHADER:			return "Compute"; break;
+		default:						return "Unknown [shader type]"; break;
+		}
+	}
+
 public:
-	GPUProgram(bool _waitError = true) { shaderProgramId = 0; waitError = _waitError; }
-
-	GPUProgram(const GPUProgram& program) {
-		if (program.shaderProgramId > 0) printf("\nError: GPU program is not copied on GPU!!!\n");
+	GPUProgram( ) { }
+	GPUProgram(const char* const vertexShaderSource, const char * const fragmentShaderSource, const char * const geometryShaderSource = nullptr) {
+		create(vertexShaderSource, fragmentShaderSource, geometryShaderSource);
 	}
 
-	void operator=(const GPUProgram& program) {
-		if (program.shaderProgramId > 0) printf("\nError: GPU program is not copied on GPU!!!\n");
-	}
-
-	unsigned int getId() { return shaderProgramId; }
-
-	bool create(const char * const vertexShaderSource,
-		        const char * const fragmentShaderSource, const char * const fragmentShaderOutputName,
-		        const char * const geometryShaderSource = nullptr)
-	{
-		// Create vertex shader from string
-		if (vertexShader == 0) vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	void create(const char* const vertexShaderSource, const char * const fragmentShaderSource, const char * const geometryShaderSource = nullptr) {
+		// Program létrehozása a forrás sztringbõl
+		GLuint  vertexShader = glCreateShader(GL_VERTEX_SHADER);
 		if (!vertexShader) {
 			printf("Error in vertex shader creation\n");
 			exit(1);
 		}
 		glShaderSource(vertexShader, 1, (const GLchar**)&vertexShaderSource, NULL);
 		glCompileShader(vertexShader);
-		if (!checkShader(vertexShader, "Vertex shader error")) return false;
+		if (!checkShader(vertexShader, "Vertex shader error")) return;
 
-		// Create geometry shader from string if given
+		// Program létrehozása a forrás sztringbõl, ha van geometria árnyaló
+		GLuint geometryShader = 0;
 		if (geometryShaderSource != nullptr) {
-			if (geometryShader == 0) geometryShader = glCreateShader(GL_GEOMETRY_SHADER);
+			geometryShader = glCreateShader(GL_GEOMETRY_SHADER);
 			if (!geometryShader) {
 				printf("Error in geometry shader creation\n");
 				exit(1);
 			}
 			glShaderSource(geometryShader, 1, (const GLchar**)&geometryShaderSource, NULL);
 			glCompileShader(geometryShader);
-			if (!checkShader(geometryShader, "Geometry shader error")) return false;
+			if (!checkShader(geometryShader, "Geometry shader error")) return;
 		}
 
-		// Create fragment shader from string
-		if (fragmentShader == 0) fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+		// Program létrehozása a forrás sztringbõl
+		GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 		if (!fragmentShader) {
 			printf("Error in fragment shader creation\n");
 			exit(1);
@@ -327,32 +142,62 @@ public:
 
 		glShaderSource(fragmentShader, 1, (const GLchar**)&fragmentShaderSource, NULL);
 		glCompileShader(fragmentShader);
-		if (!checkShader(fragmentShader, "Fragment shader error")) return false;
+		if (!checkShader(fragmentShader, "Fragment shader error")) return;
 
 		shaderProgramId = glCreateProgram();
 		if (!shaderProgramId) {
 			printf("Error in shader program creation\n");
-			exit(1);
+			exit(-1);
 		}
 		glAttachShader(shaderProgramId, vertexShader);
 		glAttachShader(shaderProgramId, fragmentShader);
 		if (geometryShader > 0) glAttachShader(shaderProgramId, geometryShader);
 
-		// Connect the fragmentColor to the frame buffer memory
-		glBindFragDataLocation(shaderProgramId, 0, fragmentShaderOutputName);	// this output goes to the frame buffer memory
+		// Szerkesztés
+		if (!link()) return;
 
-		// program packaging
-		glLinkProgram(shaderProgramId);
-		if (!checkLinking(shaderProgramId)) return false;
+		// Ez fusson
+		glUseProgram(shaderProgramId); 
+	}
 
-		// make this program run
-		glUseProgram(shaderProgramId);
+#ifdef FILE_OPERATIONS
+	bool addShader(const fs::path& _fileName) {
+		GLenum shaderType = 0;
+		auto ext = _fileName.extension();
+		if (ext == ".vert") { shaderType = GL_VERTEX_SHADER; }
+		else if (ext == ".frag") { shaderType = GL_FRAGMENT_SHADER; }
+		else if (ext == ".geom") { shaderType = GL_GEOMETRY_SHADER; }
+		else if (ext == ".tesc") { shaderType = GL_TESS_CONTROL_SHADER; }
+		else if (ext == ".tese") { shaderType = GL_TESS_EVALUATION_SHADER; }
+		else if (ext == ".comp") { shaderType = GL_COMPUTE_SHADER; }
+		else { printf("Unknown shader extension"); return false; }
+		return addShader(shaderType, _fileName);
+	}
+
+	bool addShader(GLenum shaderType, const fs::path& _fileName) {
+		std::string shaderCode = file2string(_fileName);
+		GLuint shaderID = glCreateShader(shaderType);
+		if (!shaderID) {
+			printf("Error in vertex shader creation\n");
+			exit(1);
+		}
+		const char* sourcePointer = shaderCode.data();
+		GLint sourceLength = static_cast<GLint>(shaderCode.length());
+		glShaderSource(shaderID, 1, &sourcePointer, &sourceLength);
+		glCompileShader(shaderID);
+		if (!checkShader(shaderID, shaderType2string(shaderType) + " shader error")) return false;
+		if (shaderProgramId == 0) shaderProgramId = glCreateProgram();
+		glAttachShader(shaderProgramId, shaderID);
 		return true;
 	}
+#endif
 
-	void Use() { 		// make this program run
-		glUseProgram(shaderProgramId);
+	bool link() {
+		glLinkProgram(shaderProgramId);
+		return checkLinking(shaderProgramId);
 	}
+
+	void Use() { glUseProgram(shaderProgramId); } 		// make this program run
 
 	void setUniform(int i, const std::string& name) {
 		int location = getLocation(name);
@@ -381,17 +226,137 @@ public:
 
 	void setUniform(const mat4& mat, const std::string& name) {
 		int location = getLocation(name);
-		if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, mat);
-	}
-
-	void setUniform(const Texture& texture, const std::string& samplerName, unsigned int textureUnit = 0) {
-		int location = getLocation(samplerName);
-		if (location >= 0) {
-			glUniform1i(location, textureUnit);
-			glActiveTexture(GL_TEXTURE0 + textureUnit);
-			glBindTexture(GL_TEXTURE_2D, texture.textureId);
-		}
+		if (location >= 0) glUniformMatrix4fv(location, 1, GL_FALSE, &mat[0][0]);
 	}
 
 	~GPUProgram() { if (shaderProgramId > 0) glDeleteProgram(shaderProgramId); }
 };
+
+//---------------------------
+template<class T>
+class Geometry {
+//---------------------------
+	unsigned int vao, vbo;	// GPU
+protected:
+	std::vector<T> vtx;	// CPU
+public:
+	Geometry() {
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+		glGenBuffers(1, &vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glEnableVertexAttribArray(0);
+		int nf = min((int)(sizeof(T) / sizeof(float)), 4);
+		glVertexAttribPointer(0, nf, GL_FLOAT, GL_FALSE, 0, NULL);
+	}
+	std::vector<T>& Vtx() { return vtx; }
+	void updateGPU() {	// CPU -> GPU
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, vtx.size() * sizeof(T), &vtx[0], GL_DYNAMIC_DRAW);
+	}
+	void Bind() { glBindVertexArray(vao); glBindBuffer(GL_ARRAY_BUFFER, vbo); } // aktiválás
+	void Draw(GPUProgram* prog, int type, vec3 color) {
+		if (vtx.size() > 0) {
+			prog->setUniform(color, "color");
+			glBindVertexArray(vao);
+			glDrawArrays(type, 0, (int)vtx.size());
+		}
+	}
+	virtual ~Geometry() {
+		glDeleteBuffers(1, &vbo);
+		glDeleteVertexArrays(1, &vao);
+	}
+};
+
+//---------------------------
+class Texture {
+//---------------------------
+	unsigned int textureId = 0;
+public:
+#ifdef FILE_OPERATIONS
+	Texture(const fs::path pathname, bool transparent = false, int sampling = GL_LINEAR) {
+		if (textureId == 0) glGenTextures(1, &textureId);  				// azonosító generálás
+		glBindTexture(GL_TEXTURE_2D, textureId);    // kötés
+		unsigned int width, height;
+		unsigned char* pixels;
+		if (transparent) {
+			lodepng_decode32_file(&pixels, &width, &height, pathname.string().c_str());
+			for (int y = 0; y < height; ++y) {
+				for (int x = 0; x < width; ++x) {
+					float sum = 0;
+					for (int c = 0; c < 3; ++c) {
+						sum += pixels[4 * (x + y * width) + c];
+					}
+					pixels[4 * (x + y * width) + 3] = sum / 6;
+				}
+			}
+
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels); // GPU-ra
+		}
+		else {
+			lodepng_decode24_file(&pixels, &width, &height, pathname.string().c_str());
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels); // GPU-ra
+		}
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampling); // szûrés
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampling);
+		printf("%s, w: %d, h: %d\n", pathname.string().c_str(), width, height);
+	}
+#endif
+	Texture(int width, int height) {
+		glGenTextures(1, &textureId); // azonosító generálása
+		glBindTexture(GL_TEXTURE_2D, textureId);    // ez az aktív innentõl
+		// procedurális textúra elõállítása programmal
+		const vec3 yellow(1, 1, 0), blue(0, 0, 1);
+		std::vector<vec3> image(width * height);
+		for (int x = 0; x < width; x++) for (int y = 0; y < height; y++) {
+			image[y * width + x] = (x & 1) ^ (y & 1) ? yellow : blue;
+		}
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_FLOAT, &image[0]); // To GPU
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // sampling
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
+
+	Texture(int width, int height, std::vector<vec3>& image) {
+		glGenTextures(1, &textureId); // azonosító generálása
+		glBindTexture(GL_TEXTURE_2D, textureId);    // ez az aktív innentõl
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_FLOAT, &image[0]); // To GPU
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // sampling
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
+
+	void Bind(int textureUnit) {
+		glActiveTexture(GL_TEXTURE0 + textureUnit); // aktiválás
+		glBindTexture(GL_TEXTURE_2D, textureId); // piros nyíl
+	}
+	~Texture() {
+		if (textureId > 0) glDeleteTextures(1, &textureId);
+	}
+};
+
+enum MouseButton { MOUSE_LEFT, MOUSE_MIDDLE, MOUSE_RIGHT};
+enum SpecialKeys { KEY_RIGHT = 262, KEY_LEFT = 263, KEY_DOWN = 264, KEY_UP = 265 };
+bool pollKey(int key);
+
+//---------------------------
+class glApp {
+//---------------------------
+public:
+	glApp(const char * caption);
+	glApp(unsigned int major, unsigned int minor,        // Kért OpenGL major.minor verzió
+		  unsigned int winWidth, unsigned int winHeight, // Alkalmazói ablak felbontása
+		  const char * caption);       // Megfogócsík szövege
+	void refreshScreen(); // Ablak érvénytelenítése
+	// Eseménykezelõk
+	virtual void onInitialization() {}    // Inicializáció
+	virtual void onDisplay() {}           // Ablak érvénytelen
+	virtual void onKeyboard(int key) {}   // Klaviatúra gomb lenyomás
+	virtual void onKeyboardUp(int key) {} // Klaviatúra gomb elenged
+	// Egér gomb lenyomás/elengedés
+	virtual void onMousePressed(MouseButton but, int pX, int pY) {}
+	virtual void onMouseReleased(MouseButton but, int pX, int pY) {}
+	// Egér mozgatás lenyomott gombbal
+	virtual void onMouseMotion(int pX, int pY) {}
+	// Telik az idõ
+	virtual void onTimeElapsed(float startTime, float endTime) {}
+};
+

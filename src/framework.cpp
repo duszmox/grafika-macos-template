@@ -1,72 +1,127 @@
 //=============================================================================================
-// Collection of classes from lecture slides.
-// Framework for assignments. Valid from 2019.
-// Do not change it if you want to submit a homework.
+// OpenGL keretrendszer: GLFW és GLAD alapú implementáció
 //=============================================================================================
 #include "framework.h"
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
 
-// Initialization
-void onInitialization();
+// Keretrendszer állapota
+static int minorNumber = 3, majorNumber = 3;
+static int windowWidth = 600, windowHeight = 600;
+static const char * windowCaption = "Grafika";
+static GLFWwindow* window;
+static bool screenRefresh = true;
+static glApp * pApp = nullptr;
 
-// Window has become invalid: Redraw
-void onDisplay();
+// Eseménykezelõk
+static void error_callback(int error, const char* description) {
+	fprintf(stderr, "Error: %s\n", description);
+}
 
-// Key of ASCII code pressed
-void onKeyboard(unsigned char key, int pX, int pY);
+static void window_refresh_callback(GLFWwindow* window) {
+	screenRefresh = true;
+}
 
-// Key of ASCII code released
-void onKeyboardUp(unsigned char key, int pX, int pY);
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+		glfwSetWindowShouldClose(window, GLFW_TRUE);
+		return;
+	}
+	if ((mods & GLFW_MOD_SHIFT) == 0) key += 'a' - 'A';
+	if (action == GLFW_PRESS || action == GLFW_REPEAT) pApp->onKeyboard(key);
+	if (action == GLFW_RELEASE) pApp->onKeyboardUp(key);
+}
 
-// Move mouse with key pressed
-void onMouseMotion(int pX, int pY);
+void character_callback(GLFWwindow* window, unsigned int codepoint) {
+	pApp->onKeyboard(codepoint);
+}
 
-// Mouse click event
-void onMouse(int button, int state, int pX, int pY);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+	double pX, pY;
+	glfwGetCursorPos(window, &pX, &pY);
+	if (action == GLFW_PRESS) pApp->onMousePressed((button == GLFW_MOUSE_BUTTON_LEFT) ? MOUSE_LEFT : MOUSE_RIGHT, (int)pX, (int)pY);
+	else				      pApp->onMouseReleased((button == GLFW_MOUSE_BUTTON_LEFT) ? MOUSE_LEFT : MOUSE_RIGHT, (int)pX, (int)pY);
+}
 
-// Idle event indicating that some time elapsed: do animation here
-void onIdle();
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
+	pApp->onMouseMotion((int)xpos, (int)ypos);
+}
 
-// Entry point of the application
-int main(int argc, char * argv[]) {
-	// Initialize GLUT, Glew and OpenGL 
-	glutInit(&argc, argv);
+// Applikáció konstruktora
+glApp::glApp(unsigned int _majorNumber, unsigned int _minorNumber, unsigned int _windowWidth, unsigned int _windowHeight, const char * _windowCaption) {
+	majorNumber = _majorNumber;
+	minorNumber = _minorNumber;
+	windowWidth = _windowWidth;
+	windowHeight = _windowHeight;
+	windowCaption = _windowCaption;
+	pApp = this;
+}
 
-	// OpenGL major and minor versions
-	int majorVersion = 3, minorVersion = 3;
-#if !defined(__APPLE__)
-	glutInitContextVersion(majorVersion, minorVersion);
-#endif
-	glutInitWindowSize(windowWidth, windowHeight);				// Application window is initially of resolution 600x600
-	glutInitWindowPosition(100, 100);							// Relative location of the application window
-#if defined(__APPLE__)
-	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH | GLUT_3_2_CORE_PROFILE);  // 8 bit R,G,B,A + double buffer + depth buffer
-#else
-	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
-#endif
-	glutCreateWindow(argv[0]);
+// Applikáció konstruktora
+glApp::glApp(const char * _windowCaption) {
+	majorNumber = 3;
+	minorNumber = 3;
+	windowWidth = 600;
+	windowHeight = 600;
+	windowCaption = _windowCaption;
+	pApp = this;
+}
 
-#if !defined(__APPLE__)
-	glewExperimental = true;	// magic
-	glewInit();
-#endif
-	printf("GL Vendor    : %s\n", glGetString(GL_VENDOR));
-	printf("GL Renderer  : %s\n", glGetString(GL_RENDERER));
-	printf("GL Version (string)  : %s\n", glGetString(GL_VERSION));
-	glGetIntegerv(GL_MAJOR_VERSION, &majorVersion);
-	glGetIntegerv(GL_MINOR_VERSION, &minorVersion);
-	printf("GL Version (integer) : %d.%d\n", majorVersion, minorVersion);
-	printf("GLSL Version : %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+// Rajzold újra az alkalmazási ablakot
+void glApp::refreshScreen() {
+	screenRefresh = true;
+}
 
-	// Initialize this program and create shaders
-	onInitialization();
+// Lekérdezéses klaviatúra kezelés
+bool pollKey(int key) {
+	return (glfwGetKey(window, key) == GLFW_PRESS);
+}
 
-	glutDisplayFunc(onDisplay);                // Register event handlers
-	glutMouseFunc(onMouse);
-	glutIdleFunc(onIdle);
-	glutKeyboardFunc(onKeyboard);
-	glutKeyboardUpFunc(onKeyboardUp);
-	glutMotionFunc(onMouseMotion);
+int main(void) {
+	// Alkalmazói ablak létrehozása
+	glfwSetErrorCallback(error_callback);
+	if (!glfwInit()) exit(EXIT_FAILURE);
 
-	glutMainLoop();
-	return 1;
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, majorNumber);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, minorNumber);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+	window = glfwCreateWindow(windowWidth, windowHeight, windowCaption, NULL, NULL);
+	if (!window) {
+		glfwTerminate();
+		exit(EXIT_FAILURE);
+	}
+
+	// Eseménykezelõk regisztrálása
+	//glfwSetKeyCallback(window, key_callback);
+	glfwSetCharCallback(window, character_callback);
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
+	glfwSetCursorPosCallback(window, cursor_position_callback);
+	glfwSetWindowRefreshCallback(window, window_refresh_callback);
+
+	glfwMakeContextCurrent(window);
+	gladLoadGL();
+	glfwSwapInterval(1);
+
+	// Applikáció inicializálása
+	pApp->onInitialization();
+	float startTime = 0;
+
+	// Üzenetkezelõ hurok
+	while (!glfwWindowShouldClose(window)) {
+		glfwPollEvents(); // események lekérdezése és reakció
+
+		float endTime = (float)glfwGetTime();    // idõ lekérdezése
+		pApp->onTimeElapsed(startTime, endTime); // animáció
+		startTime = endTime;
+
+		if (screenRefresh) {
+			pApp->onDisplay();       // rajzolás
+			glfwSwapBuffers(window); // buffercsere
+			screenRefresh = false;
+		}
+	}
+	glfwDestroyWindow(window);
+	glfwTerminate();
+	exit(EXIT_SUCCESS);
 }

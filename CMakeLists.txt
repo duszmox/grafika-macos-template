@@ -26,6 +26,10 @@ set(glm_DIR ./src/glm)
 find_package(glm REQUIRED)
 target_link_libraries(${PROJECT_NAME} glm::glm)
 
+if(APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES MACOSX_BUNDLE TRUE)
+endif()
+
 
 # macOS-specific frameworks
 target_link_libraries(${PROJECT_NAME} "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
